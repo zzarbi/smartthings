@@ -125,7 +125,7 @@ private sendCommand(command, method = "get", success = {}){
 	
 }
 
-private changeColor(String name, value, duration = 0){
+private changeColor(String name, value, duration = 1){
 	log.debug("Change $name to $value for $duration")
 	double hue = Double.parseDouble(device.currentState("hue").value)
 	double brightness = Double.parseDouble(device.currentState("level").value)
