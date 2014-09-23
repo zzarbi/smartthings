@@ -25,6 +25,8 @@ metadata {
 		capability "Switch Level"
 		capability "Color Control"
 		capability "Refresh"
+		
+        command "setAdjustedColor"
 	}
 
 	simulator {
@@ -39,31 +41,25 @@ metadata {
 			state "turningOn", label:'${name}', icon:"st.switches.switch.on", backgroundColor:"#79b821"
 			state "turningOff", label:'${name}', icon:"st.switches.switch.off", backgroundColor:"#ffffff"
 		}
+        controlTile("levelSliderControl", "device.level", "slider", height: 1, width: 2, inactiveLabel: false) {
+            state "level", action:"switch level.setLevel"
+        }
+        controlTile("rgbSelector", "device.color", "color", height: 3, width: 3, inactiveLabel: false) {
+            state "color", action:"setAdjustedColor"
+        }
 		standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat") {
 			state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
-		controlTile("rgbSelector", "device.color", "color", height: 3, width: 3, inactiveLabel: false) {
-			state "color", action:"setAdjustedColor"
-		}
-		controlTile("levelSliderControl", "device.level", "slider", height: 1, width: 2, inactiveLabel: false) {
-			state "level", action:"switch level.setLevel"
-		}
-		controlTile("saturationSliderControl", "device.saturation", "slider", height: 1, width: 2, inactiveLabel: false) {
-			state "saturation", action:"color control.setSaturation"
-		}
-		main "switch"
+		
+        main(["switch"])
 		details(["switch","levelSliderControl","rgbSelector","refresh"])
 	}
 }
 
 // parse events into attributes
-def parse(String description) {
-	log.debug "Parsing '${description}'"
+def parse(value) {
+	log.debug "Parsing '${value}'"
 
-}
-
-def parse(Map event) {
-	log.debug "Parsing '${event}'"
 }
 
 def poll() {
@@ -98,14 +94,12 @@ def poll() {
         log.debug("Light is "+device.currentState("switch").value)
         log.debug("Hue: "+device.currentState("hue").value)
         log.debug("Brightness: "+device.currentState("level").value)
-        log.debug("Saturation: "+device.currentState("saturation").value)
-        
+        log.debug("Saturation: "+device.currentState("saturation").value) 
     }
 }
 
-
 def setAdjustedColor(value) {
-	log.debug "setAdjustedColor: ${value}"
+    log.debug "setAdjustedColor: ${value}"
 }
 
 private getLifxSelector() {
@@ -117,12 +111,9 @@ private sendCommand(command, method = "get", success = {}){
 	def url = "http://"+settings.host+":"+settings.port+"/lights"
 	
 	if(method == "get"){
-    
    		log.debug("Get: " + url + command)
-    
 		httpGet(url + command, success)
 	}
-	
 }
 
 private changeColor(String name, value, duration = 1){
@@ -166,21 +157,4 @@ def off() {
     sendCommand("/"+selector+"/off?_method=put", "get") {
     	sendEvent(name: 'switch', value: "off")
     }
-}
-
-def setLevel(double value) {
-	changeColor("level", value)
-}
-
-def setHue(value) {
-	changeColor("hue", value)
-}
-
-def setSaturation(value) {
-	changeColor("saturation", value)
-}
-
-
-def setColor(value) {
-	log.debug "setColor: ${value}"
 }
