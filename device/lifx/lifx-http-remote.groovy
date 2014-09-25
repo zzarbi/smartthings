@@ -92,14 +92,25 @@ def poll() {
         sendEvent(name: 'saturation', value: saturation)
         
         log.debug("Light is "+device.currentState("switch").value)
-        log.debug("Hue: "+device.currentState("hue").value)
-        log.debug("Brightness: "+device.currentState("level").value)
-        log.debug("Saturation: "+device.currentState("saturation").value) 
+        log.debug("Device Hue: "+device.currentState("hue").value+" Brightness:"+device.currentState("level").value+" Sat:"+device.currentState("saturation").value)
+        log.debug("LIFX Hue: "+hue+" Brightness:"+level+" Sat:"+saturation)
     }
 }
-
+// red:94, level:100, hex:#5eff5b, blue:91, saturation:64.31372549019608, hue:33.02845528455285, green:255, alpha:1
 def setAdjustedColor(value) {
-    log.debug "setAdjustedColor: ${value}"
+    double duration = 1
+    double hue = value.hue
+    double saturation = value.saturation
+    double brightness = Double.parseDouble(device.currentState("level").value)
+    log.debug("Change hue to $hue and saturation to $saturation for $duration")
+    
+    String commandURl = "/"+getLifxSelector()+"/color?hue=$hue&saturation=$saturation&brightness=$brightness&duration=$duration&_method=put"
+    sendCommand(commandURl, "get") { response ->
+        log.debug(response)
+        log.debug("Success hue and saturation")
+        sendEvent(name: 'hue', value: hue)
+        sendEvent(name: 'saturation', value: saturation)
+    }
 }
 
 private getLifxSelector() {
@@ -116,10 +127,9 @@ private sendCommand(command, method = "get", success = {}){
 	}
 }
 
-private changeColor(String name, value, duration = 1){
+private changeColor(String name, value, duration = 1) {
 	log.debug("Change $name to $value for $duration")
 	double hue = Double.parseDouble(device.currentState("hue").value)
-	double brightness = Double.parseDouble(device.currentState("level").value)
 	double saturation = Double.parseDouble(device.currentState("saturation").value)
     
     if(name == 'hue'){
