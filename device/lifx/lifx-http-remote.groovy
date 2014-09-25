@@ -89,6 +89,7 @@ def poll() {
         
         //set saturation
         double saturation = response.data.color.saturation
+        saturation = saturation * 100
         sendEvent(name: 'saturation', value: saturation)
         
         log.debug("Light is "+device.currentState("switch").value)
@@ -101,6 +102,7 @@ def setAdjustedColor(value) {
     double duration = 1
     double hue = value.hue
     double saturation = value.saturation
+    saturation = saturation/100
     double brightness = Double.parseDouble(device.currentState("level").value)
     log.debug("Change hue to $hue and saturation to $saturation for $duration")
     
@@ -137,7 +139,7 @@ private changeColor(String name, value, duration = 1) {
     }else if(name == 'level'){
     	brightness = value/100
     }else if(name == 'saturation'){
-    	saturation = value
+    	saturation = value/100
     }
     String commandURl = "/"+getLifxSelector()+"/color?hue=$hue&saturation=$saturation&brightness=$brightness&duration=$duration&_method=put"
     sendCommand(commandURl, "get") { response ->
