@@ -101,13 +101,14 @@ def poll() {
 
 // red:94, level:100, hex:#5eff5b, blue:91, saturation:64.31372549019608, hue:33.02845528455285, green:255, alpha:1
 def setAdjustedColor(value) {
+    double brightness = Double.parseDouble(device.currentState("level").value)
     double duration = 1
     double hue = value.hue
     double saturation = value.saturation
     saturation = saturation/100
     hue = hue * 3.6
+    brightness = brightness/100
     
-    double brightness = Double.parseDouble(device.currentState("level").value)
     log.debug("Change hue to $hue and saturation to $saturation for $duration")
     
     String commandURl = "/"+getLifxSelector()+"/color?hue=$hue&saturation=$saturation&brightness=$brightness&duration=$duration&_method=put"
@@ -137,14 +138,21 @@ private changeColor(String name, value, duration = 1) {
     log.debug("Change $name to $value for $duration")
     double hue = Double.parseDouble(device.currentState("hue").value)
     double saturation = Double.parseDouble(device.currentState("saturation").value)
+    double brightness = Double.parseDouble(device.currentState("level").value)
     
     if(name == 'hue'){
         hue = value
     }else if(name == 'level'){
-        brightness = value/100
+        brightness = value
     }else if(name == 'saturation'){
-        saturation = value/100
+        saturation = value
     }
+    
+    // adjuste values
+    hue = hue * 3.6
+    brightness = brightness/100
+    saturation = saturation/100
+    
     String commandURl = "/"+getLifxSelector()+"/color?hue=$hue&saturation=$saturation&brightness=$brightness&duration=$duration&_method=put"
     sendCommand(commandURl, "get") { response ->
         log.debug(response)
@@ -156,6 +164,10 @@ private changeColor(String name, value, duration = 1) {
 def refresh() {
     log.debug "Executing 'refresh'"
     poll()
+}
+
+def setLevel(double value) {
+    changeColor("level", value)
 }
 
 // handle commands
