@@ -85,6 +85,7 @@ def poll() {
         
         //set hue
         double hue = response.data.color.hue
+        hue = hue/3.6
         sendEvent(name: 'hue', value: hue)
         
         //set saturation
