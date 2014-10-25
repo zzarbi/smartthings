@@ -93,6 +93,10 @@ $devices = array(
     '017a57fa-5f47-4faf-96b3-183eed48ec9e' => 'life360-user'
 );
 
+if(!file_exists($rootDirectory.$pathToSave)){
+    mkdir($rootDirectory.$pathToSave, 0777, true);
+}
+
 foreach($devices as $id => $deviceName){
 	$deviceFileName = preg_replace('#[^a-z0-9]#i', '-', $deviceName).'.groovy';
 	$deviceFileName = preg_replace('#-+#', '-', $deviceFileName);
@@ -112,7 +116,7 @@ foreach($devices as $id => $deviceName){
 	// grab URL and pass it to the browser
 	$result = curl_exec($ch);
 	
-	$fullPath = $rootDirectory.$pathToSave.$deviceFileName.PHP_EOL;
+	$fullPath = $rootDirectory.$pathToSave.$deviceFileName;
 	
 	file_put_contents($fullPath, $result);
 	

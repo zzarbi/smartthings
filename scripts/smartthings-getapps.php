@@ -143,8 +143,9 @@ function request($url, $sessionId){
 echo 'Getting Examples:'.PHP_EOL;
 $categoryPath = $rootDirectory.$pathToSave.'Examples';
 if(!file_exists($categoryPath)){
-    mkdir($categoryPath);
+    mkdir($categoryPath, 0777, true);
 }
+
 foreach($exampleApps as $appId => $appName) {
     $appNameFile = preg_replace('#[^a-z0-9]#i', '-', $appName);
     $appNameFile = preg_replace('#-+#', '-', $appNameFile).'.groovy';
@@ -165,10 +166,11 @@ foreach($categories as $id => $categoryName){
 	
 	echo 'Getting Category: '.$categoryName.PHP_EOL;
 	if(!file_exists($categoryPath)){
-		mkdir($categoryPath);
+		mkdir($categoryPath, 0777, true);
 	}
 	
 	$categoryData = request($categoryUrl.$id, $sessionId);
+	print_r($categoryUrl.$id);
 	if($json = json_decode($categoryData)){
 		if(is_array($json)){
 			foreach($json as $obj){
