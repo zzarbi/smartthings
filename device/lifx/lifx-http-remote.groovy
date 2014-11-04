@@ -1,7 +1,7 @@
 /**
  *  Lifx Http - Via Remote Access
  *
- *  Copyright 2014 Nicolas
+ *  Copyright 2014 Nicolas Cerveaux
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -30,11 +30,9 @@ metadata {
     }
 
     simulator {
-        // TODO: define status and reply messages here
     }
 
     tiles {
-        // TODO: define your main and details tiles here
         standardTile("switch", "device.switch", width: 2, height: 2, canChangeIcon: true) {
             state "on", label:'${name}', action:"switch.off", icon:"st.switches.switch.on", backgroundColor:"#79b821", nextState:"turningOff"
             state "off", label:'${name}', action:"switch.on", icon:"st.switches.switch.off", backgroundColor:"#ffffff", nextState:"turningOn"
