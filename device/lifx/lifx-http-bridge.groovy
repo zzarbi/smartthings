@@ -18,6 +18,11 @@ metadata {
     definition (name: "LIFX Bridge", namespace: "lifx", author: "Nicolas Cerveaux") {
         attribute "serialNumber", "string"
         attribute "networkAddress", "string"
+        
+        command "poll", ["string"]
+        command "setAdjustedColor", ["string", "json_object"]
+        command "on", ["string"]
+        command "off", ["string"]
     }
 
     simulator {
@@ -37,11 +42,19 @@ metadata {
     }
 }
 
+private Integer convertHexToInt(hex) {
+    Integer.parseInt(hex,16)
+}
+
+private String convertHexToIP(hex) {
+    [convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
+}
+
 private getHostAddress() {
     def parts = device.deviceNetworkId.split(":")
     def ip = convertHexToIP(parts[0])
     def port = convertHexToInt(parts[1])
-    log.debug "Using ip: ${ip} and port: ${port} for device: ${device.id}"
+    //log.debug "Using ip: ${ip} and port: ${port} for device: ${device.id}"
     return ip + ":" + port
 }
 
@@ -51,18 +64,99 @@ def parse(description) {
     if (description instanceof String)  {
         map = stringToMap(description)
     }
-    def header = new String(map.header.decodeBase64()) 
+    
     def body = new String(map.body.decodeBase64()) 
     try{
         def resp = new groovy.json.JsonSlurper().parseText(body)
         if(resp instanceof ArrayList){
             sendEvent(name: "bulbsStatus", value: device.hub.id, isStateChange: true, data: resp)
+            resp.each { bulb ->
+                updateBulb(bulb.id, bulb)
+            }
         }else{
-            sendEvent(name: "bulbStatus", value: device.hub.id, isStateChange: true, data: resp)
+            updateBulb(resp.id, resp)
         }
     } catch(Exception e) {
         log.error("Exception: "+e)
-        log.error("Header: "+header)
-        log.error("Body: "+body)
+        log.error("Description: "+description)
     }
+}
+
+private updateBulb(bulbId, data) {
+    // not sure why find doesn't wrk but this does...
+    def bulb
+    for(def d : parent.childDevices) {
+        if(d.deviceNetworkId == bulbId){
+            bulb = d
+            break
+        }
+    }
+    
+    if(bulb){
+        //log.debug("Update "+bulb.deviceNetworkId)
+        def brightness = Math.ceil(data.color.brightness*100)
+        def hue = Math.ceil(data.color.hue / 3.6)
+        def saturation = Math.ceil(data.color.saturation*100)
+
+        // update switch
+        if(data.on == true && bulb.currentValue("switch")!='on'){
+            log.debug('Update switch to on')
+            bulb.setValue('switch', "on")
+        }else if(data.on == false && bulb.currentValue("switch")!='off'){
+            log.debug('Update switch to off')
+            bulb.setValue('switch', "off")
+        }
+        
+        // update level
+        if(brightness != bulb.currentValue("level")){
+            //log.debug('Update level to '+brightness)
+            bulb.setValue('level', brightness)
+        }
+        
+        // update hue
+        if(hue != bulb.currentValue("hue")){
+            //log.debug('Update hue to '+hue)
+            bulb.setValue('hue', hue)
+        }
+        
+        // update saturation
+        if(saturation != bulb.currentValue("saturation")){
+            //log.debug('Update saturation to '+saturation)
+            bulb.setValue('saturation', saturation)
+        }
+    }
+}
+
+
+private sendCommand(path, method="GET") {
+    //log.debug("Path: "+path)
+    new physicalgraph.device.HubAction([
+       'method': method,
+       'path': path,
+       'headers': [
+           'HOST': getHostAddress()
+       ]
+   ], device.deviceNetworkId)
+}
+
+/* Hook for child devices */
+def poll(childDeviceId) {
+    sendCommand("/lights/"+childDeviceId)
+}
+
+def setAdjustedColor(childDeviceId, data) {
+    def hue = Math.ceil(data.hue*3.6)
+    def saturation = data.saturation/100
+    def brightness = data.level/100
+    def duration = 1
+    
+    sendCommand("/lights/"+childDeviceId+"/color?hue=$hue&saturation=$saturation&brightness=$brightness&duration=$duration&_method=put")
+}
+
+def on(childDeviceId) {
+    sendCommand("/lights/"+childDeviceId+"/on?_method=put")
+}
+
+def off(childDeviceId) {
+    sendCommand("/lights/"+childDeviceId+"/off?_method=put")
 }

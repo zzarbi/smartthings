@@ -61,7 +61,6 @@ def mainPage() {
             if(!state.bridgeSubscribed){
                 log.debug('subscribe to bridge')
                 subscribe(bridge, "bulbsStatus", bulbsStatusHandler)
-                subscribe(bridge, "bulbStatus", bulbStatusHandler)
                 state.bridgeSubscribed = true
             }else{
                 log.debug('Already subscribe to bridge')
@@ -153,20 +152,10 @@ def getBulbs()
 
 def installed() {
     initialize()
-
-    //runIn(5, "subscribeToDevices") //initial subscriptions delayed by 5 seconds
-    //runIn(10, "refreshDevices") //refresh devices, delayed by 10 seconds
-    //runIn(300, "doDeviceSync" , [overwrite: false]) //setup ip:port syncing every 5 minutes
-
-    // SUBSCRIBE responses come back with TIMEOUT-1801 (30 minutes), so we refresh things a bit before they expire (29 minutes)
-    //runIn(1740, "refresh", [overwrite: false])
 }
 
 def updated() {
     initialize()
-    
-    //runIn(5, "subscribeToDevices") //subscribe again to new/old devices wait 5 seconds
-    //runIn(10, "refreshDevices") //refresh devices again, delayed by 10 seconds
 }
 
 def refresh() {
@@ -177,6 +166,11 @@ def initialize() {
     // remove location subscription afterwards
     unsubscribe()
     state.subscribe = false
+    state.bridgeSubscribed = false
+    
+    // remove schedule
+    unschedule()
+    state.statusScheduled = false
 
     if (selectedBridges) {
         addBridges()
@@ -184,6 +178,11 @@ def initialize() {
     
     if (selectedBulbs) {
         addBulbs()
+        if(state.statusScheduled == false) {
+            // schedule from every 5 minute
+            schedule("0 0/5 * * * ?", "statusScheduledHandler")
+            state.statusScheduled = true
+        }
     }
 }
 
@@ -257,8 +256,10 @@ def bulbsStatusHandler(evt) {
     }
 }
 
-def bulbStatusHandler(evt) {
-    log.info "Bulb Status"
+def statusScheduledHandler() {
+    // force "rediscovery" of bulbs
+    discoverBulbs();
+    // IF the bulb is already setup, it will update its attribute
 }
 
 def locationHandler(evt) {
@@ -315,15 +316,6 @@ def locationHandler(evt) {
                 d.ip = device.ip
                 d.port = device.port
                 log.debug "Bridge's port or ip changed..."
-                
-                /*def children = getChildDevices()
-                log.debug "Found children ${children}"
-                children.each {
-                    if (it.getDeviceDataByName("mac") == parsedEvent.mac) {
-                        log.debug "updating ip and port, and resubscribing, for device ${it} with mac ${parsedEvent.mac}"
-                        it.subscribe(parsedEvent.ip, parsedEvent.port)
-                    }
-                }*/
             }
         }
     }
@@ -363,30 +355,4 @@ private Boolean hasAllHubsOver(String desiredFirmware)
 private List getRealHubFirmwareVersions()
 {
     return location.hubs*.firmwareVersionString.findAll { it }
-}
-
-
-/* Hook for child devices */
-def poll(childDevice) {
-    log.debug "Executing 'poll'"
-}
-
-def setAdjustedColor(childDevice, value) {
-    log.debug "Executing 'setAdjustedColor'"
-}
-
-def refresh(childDevice) {
-    log.debug "Executing 'refresh'"
-}
-
-def setLevel(childDevice, double value) {
-    log.debug "Executing 'setLevel'"
-}
-
-def on(childDevice) {
-    log.debug "Executing 'on'"
-}
-
-def off(childDevice) {
-    log.debug "Executing 'off'"
 }

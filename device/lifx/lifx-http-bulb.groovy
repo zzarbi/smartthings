@@ -15,20 +15,21 @@
  */
  
 metadata {
-	definition (name: "LIFX Bulb", namespace: "lifx", author: "Nicolas Cerveaux") {
-    	capability "Polling"
-		capability "Switch"
-		capability "Switch Level"
-		capability "Color Control"
+    definition (name: "LIFX Bulb", namespace: "lifx", author: "Nicolas Cerveaux") {
+        capability "Polling"
+        capability "Switch"
+        capability "Switch Level"
+        capability "Color Control"
         capability "Refresh"
         
         command "setAdjustedColor"
-	}
+        command "setValue", ["string", "string"]
+    }
 
-	simulator {
-	}
+    simulator {
+    }
 
-	tiles {
+    tiles {
         standardTile("switch", "device.switch", width: 2, height: 2, canChangeIcon: true) {
             state "on", label:'${name}', action:"switch.off", icon:"st.Lighting.light14", backgroundColor:"#79b821", nextState:"turningOff"
             state "off", label:'${name}', action:"switch.on", icon:"st.Lighting.light14", backgroundColor:"#ffffff", nextState:"turningOn"
@@ -47,34 +48,60 @@ metadata {
         
         main(["switch"])
         details(["switch","levelSliderControl","rgbSelector","refresh"])
-	}
+    }
+}
+
+def setValue(name, value) {
+    return sendEvent(name: name, value: value)
+}
+
+def getBridge() {
+    def bridge = parent.childDevices.find {it.name == "LIFX Bridge"}    
+    return bridge
 }
 
 //parse events into attributes
 def parse(value) {
-    log.debug "Parsing '${value}'"
+    log.debug "Parsing '${value}' for ${device.deviceNetworkId}"
 }
 
 def poll() {
-    parent.poll(this)
+    getBridge().poll(device.deviceNetworkId)
 }
 
 def setAdjustedColor(value) {
-    parent.setAdjustedColor(this, value)
-}
-
-def refresh() {
-    parent.refresh(this)
+    sendEvent(name: 'hue', value: value.hue)
+    sendEvent(name: 'saturation', value: value.saturation)
+    
+    def data = [:]
+    data.hue = value.hue
+    data.saturation = value.saturation
+    data.level = device.currentValue("level")
+    
+    getBridge().setAdjustedColor(device.deviceNetworkId, data)
 }
 
 def setLevel(double value) {
-    parent.setLevel(this, value)
+    sendEvent(name: 'level', value: value)
+    
+    def data = [:]
+    data.hue = device.currentValue("hue")
+    data.saturation = device.currentValue("saturation")
+    data.level = value
+
+    getBridge().setAdjustedColor(device.deviceNetworkId, data)
 }
 
 def on() {
-    parent.on(this)
+    sendEvent(name: 'switch', value: 'on')
+    getBridge().on(device.deviceNetworkId)
 }
 
 def off() {
-    parent.off(this)
+    sendEvent(name: 'switch', value: 'off')
+    getBridge().off(device.deviceNetworkId)
+}
+
+def refresh() {
+    poll()
 }
