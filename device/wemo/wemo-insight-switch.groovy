@@ -42,7 +42,7 @@ metadata {
             state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
         }
         valueTile("energy", "device.energy", decoration: "flat") {
-            state "default", label:'${currentValue} kWm'
+            state "default", label:'${currentValue} Wm'
         }
 
         main "switch"
@@ -95,7 +95,7 @@ def parse(String description) {
             
             // send event to refresh switch
             result << createEvent(name: "switch", value: value)
-            result << createEvent(name: "energy", value: energy, unit: "kWm")
+            result << createEvent(name: "energy", value: energy, unit: "Wm")
         }
     }
 
