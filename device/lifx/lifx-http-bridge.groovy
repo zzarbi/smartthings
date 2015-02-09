@@ -64,17 +64,22 @@ def parse(description) {
     if (description instanceof String)  {
         map = stringToMap(description)
     }
-    
+    def headers = ''
+    if(map.headers){
+        headers = new String(map.headers.decodeBase64()) 
+    }
     def body = new String(map.body.decodeBase64()) 
     try{
-        def resp = new groovy.json.JsonSlurper().parseText(body)
-        if(resp instanceof ArrayList){
-            sendEvent(name: "bulbsStatus", value: device.hub.id, isStateChange: true, data: resp)
-            resp.each { bulb ->
-                updateBulb(bulb.id, bulb)
+        if(headers.contains("application/json")){
+            def resp = new groovy.json.JsonSlurper().parseText(body)
+            if(resp instanceof ArrayList){
+                sendEvent(name: "bulbsStatus", value: device.hub.id, isStateChange: true, data: resp)
+                resp.each { bulb ->
+                    updateBulb(bulb.id, bulb)
+                }
+            }else{
+                updateBulb(resp.id, resp)
             }
-        }else{
-            updateBulb(resp.id, resp)
         }
     } catch(Exception e) {
         log.error("Exception: "+e)

@@ -32,7 +32,8 @@ preferences {
 }
 
 private discoverBridges() {
-    sendHubCommand(new physicalgraph.device.HubAction("lan discovery urn:schemas-upnp-org:device:MediaRenderer:1", physicalgraph.device.Protocol.LAN))
+    // look for all rootdevice that could potentially host lifx-http
+    sendHubCommand(new physicalgraph.device.HubAction("lan discovery upnp:rootdevice", physicalgraph.device.Protocol.LAN))
 }
 
 private discoverBulbs() {
@@ -44,7 +45,7 @@ private discoverBulbs() {
                 method: "GET",
                 path: "/lights",
                 headers: [
-                    HOST: getHostAddressFromDevice(bridge)
+                    HOST: ipAddressFromDni(bridge.deviceNetworkId)
                 ]
             ], bridge.deviceNetworkId))
         } catch(Exception e){
@@ -55,7 +56,8 @@ private discoverBulbs() {
 
 def mainPage() {
     if(canInstallLabs()) {
-        def bridge = getChildDevices()?.find {it.name == "LIFX Bridge"}
+        def bridge = false
+        //getChildDevices()?.find {it.name == "LIFX Bridge"}
         
         if (bridge) {
             if(!state.bridgeSubscribed){
@@ -98,6 +100,11 @@ def bridgeDiscovery(params=[:]) {
     if((refreshCount % 5) == 0) {
         discoverBridges()
     }
+    
+    //lights request every 3 seconds except on discoveries
+    if(((refreshCount % 1) == 0) && ((refreshCount % 5) != 0)) {
+        verifyBridges()
+    }
 
     def bridgesDiscovered = bridgesDiscovered()
     return dynamicPage(name:"bridgeDiscovery", title:"Brige Discovery Started!", nextPage:"bulbDiscovery", refreshInterval: refreshInterval, install:true, uninstall: selectedBridges != null) {
@@ -117,6 +124,24 @@ def bulbDiscovery(params=[:]) {
         section("Select a Bulb...") {
             input "selectedBulbs", "enum", required:false, title:"Select Bulbs \n(${bulbsDiscovered.size() ?: 0} found)", multiple:true, options:bulbsDiscovered
         }
+    }
+}
+
+private verifyBridge(deviceNetworkId) {    
+    log.trace "verifyBridge($deviceNetworkId)"
+    sendHubCommand(new physicalgraph.device.HubAction([
+        method: "GET",
+        path: "/lights",
+        headers: [
+            HOST: ipAddressFromDni(deviceNetworkId)
+        ]], deviceNetworkId))
+}
+
+private verifyBridges() {
+    def devices = getBridges().findAll { it?.value?.verified != true }
+    //log.debug "UNVERIFIED BRIDGES!: $devices"
+    devices.each {
+        verifyBridge((it?.value?.ip + ":" + it?.value?.port))
     }
 }
 
@@ -267,7 +292,7 @@ def locationHandler(evt) {
         return ""
     }
     
-    if(evt.description.contains('urn:schemas-upnp-org:device:MediaRenderer:')){
+    if(evt.description.contains('upnp:rootdevice')){
         log.debug("Found a device")
         
         def device = [:]
@@ -297,9 +322,10 @@ def locationHandler(evt) {
                 }
             }
         }
+
         device.hub = evt?.hubId
-        device.name = "LIFX Bridge"
-        device.verified = true
+        device.name = "Bridge - "+convertHexToIP(device.ip)
+        device.verified = false
         
         // override the port to 56780
         device.port = convertPortToHex(56780);
@@ -318,6 +344,10 @@ def locationHandler(evt) {
                 log.debug "Bridge's port or ip changed..."
             }
         }
+    }else{   
+        // BRIDGE RESPONSES
+        log.trace "BRIDGE RESPONSES"
+        log.debug ("Bridge :"+evt.description)
     }
 }
 
@@ -329,11 +359,11 @@ private String convertHexToIP(hex) {
     [convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
 }
 
-private getHostAddressFromDevice(device) {
-    def parts = device.deviceNetworkId.split(":")
+private ipAddressFromDni(deviceNetworkId) {
+    def parts = deviceNetworkId.split(":")
     def ip = convertHexToIP(parts[0])
     def port = convertHexToInt(parts[1])
-    log.debug "Using ip: ${ip} and port: ${port} for device: ${device.id}"
+    //log.debug "Using ip: ${ip} and port: ${port} for device: ${deviceNetworkId}"
     return ip + ":" + port
 }
 
