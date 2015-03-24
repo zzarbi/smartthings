@@ -50,6 +50,12 @@ metadata {
     }
 }
 
+private debug(data){
+    if(parent.appSettings.debug == "true"){
+        log.debug(data)
+    }
+}
+
 // parse events into attributes
 def parse(String description) {
     def map = stringToMap(description)
@@ -60,7 +66,7 @@ def parse(String description) {
     if (headerString.contains("SID: uuid:")) {
         def sid = (headerString =~ /SID: uuid:.*/) ? ( headerString =~ /SID: uuid:.*/)[0] : "0"
         sid -= "SID: uuid:".trim()
-        //log.debug('Update subscriptionID: '+ sid)
+        debug('Update subscriptionID: '+ sid)
         updateDataValue("subscriptionId", sid)
     }
     
@@ -73,6 +79,7 @@ def parse(String description) {
             def responseValue = body.text();
             def value = "off"
             def energy = 0
+            debug("Updating Device:")
             if(responseValue.contains("|")){
                 /*  
                     State (1 on | 0 off | 8 standby)
@@ -89,8 +96,11 @@ def parse(String description) {
                 def parts = responseValue.split("\\|")
                 value = (parts[0].toInteger() >= 1) ? "on" : "off"
                 energy = Math.ceil(parts[7].toInteger() / 1000)
+                debug("Light: $value")
+                debug("Energy: $energy")
             }else{
-                value = responseValue.toInteger() == 1 ? "on" : "off"    
+                value = responseValue.toInteger() == 1 ? "on" : "off"
+                debug("Light: $value")
             }
             
             // send event to refresh switch
@@ -124,14 +134,14 @@ private getHostAddress() {
             ip = parts[0]
             port = parts[1]
         } else {
-            //log.warn "Can't figure out ip and port for device: ${device.id}"
+            debug("Can't figure out ip and port for device: ${device.id}")
         }
     }
     
     //convert IP/port
     ip = convertHexToIP(ip)
     port = convertHexToInt(port)
-    //log.debug "Using ip: ${ip} and port: ${port} for device: ${device.id}"
+    debug("Using ip: ${ip} and port: ${port} for device: ${device.id}")
     return ip + ":" + port
 }
 
@@ -190,12 +200,12 @@ def off() {
 }
 
 def refresh() {
-    //log.debug "Executing WeMo Switch 'subscribe', then 'timeSyncResponse', then 'poll'"
+    debug("Executing WeMo Switch 'subscribe', then 'timeSyncResponse', then 'poll'")
     poll()
 }
 
 def subscribe(hostAddress) {
-    //log.debug "Executing 'subscribe()'"
+    debug("Executing 'subscribe()'")
     def address = getCallBackAddress()
     new physicalgraph.device.HubAction("""SUBSCRIBE /upnp/event/basicevent1 HTTP/1.1
 HOST: ${hostAddress}
@@ -216,11 +226,11 @@ def subscribe(ip, port) {
     def existingIp = getDataValue("ip")
     def existingPort = getDataValue("port")
     if (ip && ip != existingIp) {
-        log.debug "Updating ip from $existingIp to $ip"
+        debug("Updating ip from $existingIp to $ip")
         updateDataValue("ip", ip)
     }
     if (port && port != existingPort) {
-        log.debug "Updating port from $existingPort to $port"
+        debug("Updating port from $existingPort to $port")
         updateDataValue("port", port)
     }
 
@@ -228,7 +238,7 @@ def subscribe(ip, port) {
 }
 
 def resubscribe() {
-    //log.debug "Executing 'resubscribe()'"
+    debug("Executing 'resubscribe()'")
     def sid = getDeviceDataByName("subscriptionId")
     
     new physicalgraph.device.HubAction("""SUBSCRIBE /upnp/event/basicevent1 HTTP/1.1

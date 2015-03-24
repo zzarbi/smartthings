@@ -21,10 +21,18 @@ definition(
     category: "SmartThings Labs",
     iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/wemo.png",
     iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Partner/wemo@2x.png"
-)
+) {
+    appSetting "debug"
+}
 
 preferences {
     page(name:"firstPage", title:"Wemo Insight Setup", content:"firstPage")
+}
+
+private debug(data) {
+    if(appSettings.debug == "true"){
+        log.debug(data)
+    }
 }
 
 private discoverAllWemoTypes() {
@@ -51,7 +59,7 @@ def firstPage() {
         state.refreshCount = refreshCount + 1
         def refreshInterval = 5
 
-        //log.debug "REFRESH COUNT :: ${refreshCount}"
+        debug("REFRESH COUNT :: ${refreshCount}")
 
         if(!state.subscribe) {
             // subscribe to answers from HUB
@@ -97,7 +105,7 @@ def devicesDiscovered() {
 }
 
 def insightSwitchesDiscovered() {
-    //log.debug("Dicovered insight switches")
+    debug("Dicovered insight switches")
     def insightSwitches = getWemoInsightSwitches().findAll { it?.value?.verified == true }
     def map = [:]
     insightSwitches.each {
@@ -114,12 +122,12 @@ def getWemoInsightSwitches() {
 }
 
 def installed() {
-    //log.debug "Installed with settings: ${settings}"
+    debug "Installed with settings: ${settings}"
     initialize()
 }
 
 def updated() {
-    //log.debug "Updated with settings: ${settings}"
+    debug "Updated with settings: ${settings}"
     initialize()
 }
 
@@ -139,10 +147,10 @@ def refreshDevices() {
 }
 
 def subscribeToDevices() {
-    //log.debug "subscribeToDevices() called"
+    debug("subscribeToDevices() called")
     def devices = getAllChildDevices()
     devices.each { d ->
-        //log.debug('Call subscribe on '+d.id)
+        debug('Call subscribe on '+d.id)
         d.subscribe()
     }
 }
