@@ -13,7 +13,7 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
- 
+
 metadata {
     definition (name: "LIFX Bulb", namespace: "lifx", author: "Nicolas Cerveaux") {
         capability "Polling"
@@ -117,7 +117,6 @@ private parseResponse(resp) {
                     debug('Update saturation to '+saturation)
                     sendEvent(name: 'saturation', value: saturation)
                 }
-            
             }
         }
     }else if(resp.status == 201){

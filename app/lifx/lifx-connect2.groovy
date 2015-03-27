@@ -57,11 +57,12 @@ private discoverBulbs() {
                     def bulbs = getBulbs()
                     
                     resp.data.each() { bulb ->
-                        if (!(bulbs."${bulb.id.toString()}")) { //if it doesn't already exist
+                        if (!(bulbs."${bulb.id.toString()}")) { // if it doesn't already exist
                             bulbs << ["${bulb.id.toString()}":bulb]
                             debug("Found new bulb ${bulb.id}")
                         } else { // just update the values
-                            debug("Bulb already been found ${bulb.id}")
+                            bulbs["${bulb.id.toString()}"] = bulb;
+                            debug("Updating bulb ${bulb.id}")
                         }
                     }
                 }
@@ -155,6 +156,7 @@ def initialize() {
         if(state.statusScheduled == false) {
             // schedule from every 5 minute
             schedule("0 0/5 * * * ?", "pollChildrenHandler")
+            schedule("0/2 0 * * * ?", "checkBulbConnectionStatus")
             state.statusScheduled = true
             pollChildrenHandler()
         }
@@ -168,11 +170,46 @@ def pollChildrenHandler() {
     }
 }
 
+def checkBulbConnectionStatus() {
+    debug("Check checkBulbConnectionStatus")
+    def foundError = false
+    def bulbWithErrors = []
+    def dateLastError = null
+    def today = new Date()
+    
+    if(state.lastError != 0){
+        dateLastError = new Date((long)state.lastError)
+    }
+    
+    // call dicoverBulb
+    discoverBulbs();
+    getBulbs().each { id, it ->
+        if(!it.connected){
+            foundError = true
+            bulbWithErrors << it.label
+        }
+    }
+    
+    if(foundError){
+        if(state.lastError == null || dateLastError.format('MM/dd') != today.format('MM/dd')){
+            state.lastError = now()
+            debug("Send Notification")
+            try{
+                sendNotification('Following LIFX Bulb ('+bulbWithErrors.join(',')+') are disconnected, please reboot them')
+            }catch(Exception e){}
+        }else{
+            debug("Notification already sent today")
+        }
+    }else{
+        state.lastError = 0
+    }
+}
+
 private addBulbs() {
     def bulbs = getBulbs()
 
     selectedBulbs.each { id ->
-        // find corresponding bridge
+        // find corresponding bulb
         def selectedBulb = bulbs."${id.toString()}"
         def d
         if (selectedBulb) {
