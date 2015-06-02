@@ -156,7 +156,7 @@ def initialize() {
         if(state.statusScheduled == false) {
             // schedule from every 5 minute
             schedule("0 0/5 * * * ?", "pollChildrenHandler")
-            schedule("0/2 0 * * * ?", "checkBulbConnectionStatus")
+            schedule("0 0/15 * * * ?", "checkBulbConnectionStatus")
             state.statusScheduled = true
             pollChildrenHandler()
         }
@@ -191,7 +191,7 @@ def checkBulbConnectionStatus() {
     }
     
     if(foundError){
-        if(state.lastError == null || dateLastError.format('MM/dd') != today.format('MM/dd')){
+        if(dateLastError == null || dateLastError.format('MM/dd') != today.format('MM/dd')){
             state.lastError = now()
             debug("Send Notification")
             try{
