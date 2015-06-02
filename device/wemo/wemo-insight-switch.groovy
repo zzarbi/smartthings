@@ -16,6 +16,7 @@
 metadata {
     // Automatically generated. Make future change here.
     definition (name: "Wemo Insight Switch", namespace: "wemo", author: "Nicolas Cerveaux") {
+        capability "Power Meter"
         capability "Energy Meter"
         capability "Actuator"
         capability "Switch"
@@ -43,6 +44,9 @@ metadata {
         }
         valueTile("energy", "device.energy", decoration: "flat") {
             state "default", label:'${currentValue} Wm'
+        }
+        valueTile("power", "device.power", decoration: "flat") {
+            state "default", label:'${currentValue} W'
         }
 
         main "switch"
@@ -79,6 +83,7 @@ def parse(String description) {
             def responseValue = body.text();
             def value = "off"
             def energy = 0
+            def power = 0
             debug("Updating Device:")
             if(responseValue.contains("|")){
                 /*  
@@ -88,24 +93,27 @@ def parse(String description) {
                     Seconds On Today 14633
                     Unknown Ð Unit is Seconds 236095
                     Total Seconds 1209600
-                    Unknown Ð Units are Watts 98
+                    Avg On Ð Units are Watts 98
                     Energy Used Now in mW * minutes 124130
                     Energy Used Total in mW * minutes 24366561
                     Unknown
                  */
                 def parts = responseValue.split("\\|")
                 value = (parts[0].toInteger() >= 1) ? "on" : "off"
-                energy = Math.ceil(parts[7].toInteger() / 1000)
-                debug("Light: $value")
+                energy = Math.ceil(parts[8].toInteger() / 1000)
+                power = Math.ceil(parts[7].toInteger() / 1000)
+                debug("Status: $value")
                 debug("Energy: $energy")
+                debug("Power: $power")
             }else{
                 value = responseValue.toInteger() == 1 ? "on" : "off"
-                debug("Light: $value")
+                debug("Status: $value")
             }
             
             // send event to refresh switch
             result << createEvent(name: "switch", value: value)
             result << createEvent(name: "energy", value: energy, unit: "Wm")
+            result << createEvent(name: "power", value: power, unit: "W")
         }
     }
 
