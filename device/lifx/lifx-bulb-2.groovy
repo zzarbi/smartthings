@@ -23,6 +23,7 @@ metadata {
         capability "Refresh"
         
         command "setAdjustedColor"
+        command "setColor"
     }
 
     simulator {
@@ -120,7 +121,7 @@ private parseResponse(resp) {
             }
         }
     }else if(resp.status == 201){
-        debug("Something was created")
+        debug("Something was created/updated")
     }
 }
 
@@ -156,6 +157,11 @@ def setLevel(double value) {
 
     sendAdjustedColor(data)
     sendEvent(name: 'level', value: value)
+}
+
+def setColor(value) {
+    log.debug "setColor: ${value}"
+    setAdjustedColor(value)
 }
 
 def on() {
