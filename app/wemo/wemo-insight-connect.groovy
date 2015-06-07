@@ -1,5 +1,6 @@
 /**
- *  Wemo Insight Connect
+ *  WeMo Insight Connect
+ *  Source: https://github.com/zzarbi/smartthings/blob/master/app/wemo/wemo-insight-connect.groovy
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -14,7 +15,7 @@
  *
  */
 definition(
-    name: "Wemo Insight Connect",
+    name: "WeMo Insight Connect",
     namespace: "wemo",
     author: "Nicolas Cerveaux",
     description: "Allows you to integrate your WeMo Insight Switch with SmartThings.",
@@ -26,7 +27,7 @@ definition(
 }
 
 preferences {
-    page(name:"firstPage", title:"Wemo Insight Setup", content:"firstPage")
+    page(name:"firstPage", title:"WeMo Insight Setup", content:"firstPage")
 }
 
 private debug(data) {
