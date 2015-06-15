@@ -130,12 +130,12 @@ def parse(value) {
     debug("Parsing '${value}' for ${device.deviceNetworkId}")
 }
 
-private sendAdjustedColor(data) {
+private sendAdjustedColor(data, powerOn) {
     def hue = Math.ceil(data.hue*3.6)
     def saturation = data.saturation/100
     def brightness = data.level/100
     
-    sendCommand("lights/"+device.deviceNetworkId+"/color", "PUT", 'color=hue%3A'+hue+'%20saturation%3A'+saturation+'%20brightness%3A'+brightness+'&duration=1&power_on=false')
+    sendCommand("lights/"+device.deviceNetworkId+"/color", "PUT", 'color=hue%3A'+hue+'%20saturation%3A'+saturation+'%20brightness%3A'+brightness+'&duration=1&power_on='+powerOn)
 }
 
 def setAdjustedColor(value) {
@@ -144,7 +144,7 @@ def setAdjustedColor(value) {
     data.saturation = value.saturation
     data.level = device.currentValue("level")
     
-    sendAdjustedColor(data)
+    sendAdjustedColor(data, 'false')
     sendEvent(name: 'hue', value: value.hue)
     sendEvent(name: 'saturation', value: value.saturation)
 }
@@ -155,13 +155,22 @@ def setLevel(double value) {
     data.saturation = device.currentValue("saturation")
     data.level = value
 
-    sendAdjustedColor(data)
+    sendAdjustedColor(data, 'true')
     sendEvent(name: 'level', value: value)
+    sendEvent(name: 'switch', value: "on")
 }
 
 def setColor(value) {
     log.debug "setColor: ${value}"
-    setAdjustedColor(value)
+    def data = [:]
+    data.hue = value.hue
+    data.saturation = value.saturation
+    data.level = (value.level)?value.level:device.currentValue("level")
+    
+    sendAdjustedColor(data, 'true')
+    sendEvent(name: 'hue', value: value.hue)
+    sendEvent(name: 'saturation', value: value.saturation)
+    sendEvent(name: 'switch', value: "on")
 }
 
 def on() {
