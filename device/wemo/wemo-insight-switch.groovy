@@ -1,5 +1,6 @@
 /**
- *  Wemo Insight Switch (Connect)
+ *  WeMo Insight Switch (Connect)
+ *  Source: https://github.com/zzarbi/smartthings/blob/master/device/wemo/wemo-insight-switch.groovy
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -15,7 +16,7 @@
  */
 metadata {
     // Automatically generated. Make future change here.
-    definition (name: "Wemo Insight Switch", namespace: "wemo", author: "Nicolas Cerveaux") {
+    definition (name: "WeMo Insight Switch", namespace: "wemo", author: "Nicolas Cerveaux") {
         capability "Power Meter"
         capability "Energy Meter"
         capability "Actuator"
