@@ -44,7 +44,7 @@ private discoverBulbs() {
     debug(location)
     debug("Start Discovery of LIFX Bulb using access_token="+appSettings.accessToken)
     def pollParams = [
-        uri: "https://api.lifx.com:443",
+        uri: "https://api.lifx.co",
         path: "/v1beta1/lights.json?access_token="+appSettings.accessToken,
         headers: ["Content-Type": "text/json", "Authorization": "Bearer ${appSettings.accessToken}"],
         query: [format: 'json', body: jsonRequestBody]

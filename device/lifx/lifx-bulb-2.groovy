@@ -64,7 +64,7 @@ private getAccessToken() {
 private sendCommand(path, method="GET", body=null) {
     def accessToken = getAccessToken()
     def pollParams = [
-        uri: "https://api.lifx.com:443",
+        uri: "https://api.lifx.co",
         path: "/v1beta1/"+path+".json",
         headers: ["Content-Type": "application/x-www-form-urlencoded", "Authorization": "Bearer ${accessToken}"],
         body: body
