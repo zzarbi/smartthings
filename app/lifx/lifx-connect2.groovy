@@ -30,8 +30,7 @@ definition(
 
 preferences {
     page(name:"mainPage", title:"LIFX Device Setup", content:"mainPage", refreshTimeout:5)
-    page(name:"bridgeDiscovery", title:"LIFX Bridge Discovery", content:"bridgeDiscovery", refreshTimeout:5)
-    page(name:"bulbDiscovery", title:"LIFX Bulb Discovery", content:"bulbDiscovery", refreshTimeout:5)
+    page(name:"lifxDiscovery", title:"LIFX Bulb Discovery", content:"lifxDiscovery", refreshTimeout:5)
 }
 
 private debug(data) {
@@ -40,7 +39,7 @@ private debug(data) {
     }
 }
 
-private discoverBulbs() {
+private discoverLifx() {
     debug(location)
     debug("Start Discovery of LIFX Bulb using access_token="+appSettings.accessToken)
     def pollParams = [
@@ -55,14 +54,25 @@ private discoverBulbs() {
             if(resp.status == 200) {
                 if (resp.data) {
                     def bulbs = getBulbs()
+                    def groups = getGroups()
                     
                     resp.data.each() { bulb ->
+                        // add Bulbs
                         if (!(bulbs."${bulb.id.toString()}")) { // if it doesn't already exist
                             bulbs << ["${bulb.id.toString()}":bulb]
                             debug("Found new bulb ${bulb.id}")
                         } else { // just update the values
                             bulbs["${bulb.id.toString()}"] = bulb;
                             debug("Updating bulb ${bulb.id}")
+                        }
+                        
+                        // add Groups
+                        if (!(groups."${bulb.group.id.toString()}")) { // if it doesn't already exist
+                            groups << ["${bulb.group.id.toString()}":bulb.group]
+                            debug("Found new group ${bulb.group.id}")
+                        } else { // just update the values
+                            groups["${bulb.group.id.toString()}"] = bulb.group;
+                            debug("Updating group ${bulb.group.id}")
                         }
                     }
                 }
@@ -86,7 +96,7 @@ def mainPage() {
             }
         }
         
-        return bulbDiscovery()
+        return lifxDiscovery()
     } else {
         def upgradeNeeded = """To use SmartThings Labs, your Hub should be completely up to date.
 
@@ -100,15 +110,17 @@ To update your Hub, access Location Settings in the Main Menu (tap the gear next
     }
 }
 
-def bulbDiscovery(params=[:]) {
+def lifxDiscovery(params=[:]) {
     def refreshInterval = 5
     
-    discoverBulbs()
+    discoverLifx()
 
     def bulbsDiscovered = bulbsDiscovered()
-    return dynamicPage(name:"bulbDiscovery", title:"LIFX Discovery Started!", nextPage:"", refreshInterval: refreshInterval, install:true, uninstall: selectedBulbs != null) {
+    def groupsDiscovered = groupsDiscovered()
+    return dynamicPage(name:"lifxDiscovery", title:"LIFX Discovery Started!", nextPage:"", refreshInterval: refreshInterval, install:true, uninstall: (selectedBulbs != null || selectedGroups!= null)) {
         section("Select a bulb to add...") {
-            input "selectedBulbs", "enum", required:false, title:"LIFX Bulb \n(${bulbsDiscovered.size() ?: 0} found)", multiple:true, options:bulbsDiscovered
+            input "selectedBulbs", "enum", required:false, title:"LIFX Bulbs \n(${bulbsDiscovered.size() ?: 0} found)", multiple:true, options:bulbsDiscovered
+            input "selectedGroups", "enum", required:false, title:"LIFX Groups \n(${groupsDiscovered.size() ?: 0} found)", multiple:true, options:groupsDiscovered
         }
     }
 }
@@ -122,9 +134,23 @@ def bulbsDiscovered() {
     map
 }
 
+def groupsDiscovered() {
+    def groups = getGroups()
+    def map = [:]
+    groups.each {
+        map["${it.value.id}"] = it.value.name
+    }
+    map
+}
+
 private getBulbs() {
     if (!state.bulbs) { state.bulbs = [:] }
     state.bulbs
+}
+
+private getGroups() {
+    if (!state.groups) { state.groups = [:] }
+    state.groups
 }
 
 def installed() {
@@ -152,14 +178,18 @@ def initialize() {
     
     if (selectedBulbs) {
         addBulbs()
-        
-        if(state.statusScheduled == false) {
-            // schedule from every 5 minute
-            schedule("0 0/5 * * * ?", "pollChildrenHandler")
-            schedule("0 0/15 * * * ?", "checkBulbConnectionStatus")
-            state.statusScheduled = true
-            pollChildrenHandler()
-        }
+    }
+    
+    if(selectedGroups) {
+        addGroups()
+    }
+    
+    if((selectedBulbs || selectedGroups) && state.statusScheduled == false) {
+        // schedule from every 5 minute
+        schedule("0 0/5 * * * ?", "pollChildrenHandler")
+        schedule("0 0/15 * * * ?", "checkBulbConnectionStatus")
+        state.statusScheduled = true
+        pollChildrenHandler()
     }
 }
 
@@ -182,7 +212,7 @@ def checkBulbConnectionStatus() {
     }
     
     // call dicoverBulb
-    discoverBulbs();
+    discoverLifx();
     getBulbs().each { id, it ->
         if(!it.connected){
             foundError = true
@@ -229,8 +259,31 @@ private addBulbs() {
     }
 }
 
-private removeChildDevices(children)
-{
+private addGroups() {
+    def groups = getGroups()
+
+    selectedGroups.each { id ->
+        // find corresponding bulb
+        def selectedGroup = groups."${id.toString()}"
+        def d
+        if (selectedGroup) {
+            // find childDevices
+            d = getChildDevices()?.find {it.deviceNetworkId == id}
+        }
+        
+        // if device not found
+        if (!d) {
+            // create device
+            debug("Add LIFX Group ${selectedGroup.name}")
+            d = addChildDevice("lifx", "LIFX Group", id, null, [
+                "name": selectedGroup.name + " Group",
+                "label": selectedGroup.name + " Group"
+            ])
+        }
+    }
+}
+
+private removeChildDevices(children) {
     debug("Deleting ${children.size()} LIFX Bulb")
     children.each {
         debug("Delete LIFX Bulb.id=${it.deviceNetworkId}")
@@ -238,17 +291,14 @@ private removeChildDevices(children)
     }
 }
 
-private Boolean canInstallLabs()
-{
+private Boolean canInstallLabs() {
     return hasAllHubsOver("000.011.00603")
 }
 
-private Boolean hasAllHubsOver(String desiredFirmware)
-{
+private Boolean hasAllHubsOver(String desiredFirmware) {
     return realHubFirmwareVersions.every { fw -> fw >= desiredFirmware }
 }
 
-private List getRealHubFirmwareVersions()
-{
+private List getRealHubFirmwareVersions() {
     return location.hubs*.firmwareVersionString.findAll { it }
 }
