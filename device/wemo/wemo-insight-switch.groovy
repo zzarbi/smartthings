@@ -64,7 +64,9 @@ private debug(data){
 // parse events into attributes
 def parse(String description) {
     def map = stringToMap(description)
-    def headerString = new String(map.headers.decodeBase64())
+    def headerString = ""
+    if (map.headers)
+       headerString = new String(map.headers.decodeBase64())
     def result = []
     
     // update subscriptionId
