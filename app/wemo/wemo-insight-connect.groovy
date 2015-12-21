@@ -16,7 +16,7 @@
  */
 definition(
     name: "WeMo Insight Connect",
-    namespace: "wemo",
+    namespace: "zzarbi",
     author: "Nicolas Cerveaux",
     description: "Allows you to integrate your WeMo Insight Switch with SmartThings.",
     category: "SmartThings Labs",
@@ -37,6 +37,7 @@ private debug(data) {
 }
 
 private discoverAllWemoTypes() {
+    debug("Send discover command")
     sendHubCommand(new physicalgraph.device.HubAction("lan discovery urn:Belkin:device:insight:1", physicalgraph.device.Protocol.LAN))
 }
 
@@ -63,6 +64,7 @@ def firstPage() {
         debug("REFRESH COUNT :: ${refreshCount}")
 
         if(!state.subscribe) {
+            debug("Subscribe to location")
             // subscribe to answers from HUB
             subscribe(location, null, locationHandler, [filterEvents:false])
             state.subscribe = true
@@ -80,7 +82,7 @@ def firstPage() {
 
         def insightSwitchesDiscovered = insightSwitchesDiscovered()
 
-        return dynamicPage(name:"firstPage", title:"Discovery Started!", nextPage:"", refreshInterval: refreshInterval, install:true, uninstall: selectedSwitches != null || selectedMotions != null || selectedLightSwitches != null) {
+        return dynamicPage(name:"firstPage", title:"Discovery Started!", nextPage:"", refreshInterval: refreshInterval, install:true, uninstall: true) {
             section("Select a device...") {
                 input "selectedInsightSwitches", "enum", required:false, title:"Select Insight Switches \n(${insightSwitchesDiscovered.size() ?: 0} found)", multiple:true, options:insightSwitchesDiscovered
             }
@@ -123,12 +125,28 @@ def getWemoInsightSwitches() {
 }
 
 def installed() {
-    debug "Installed with settings: ${settings}"
+    debug("Installed with settings: ${settings}")
     initialize()
 }
 
+def uninstalled() {
+    debug("Uninstalling, removing child devices...")
+    unschedule('subscribeToDevices')
+    removeChildDevices(getChildDevices())
+}
+
+private removeChildDevices(devices) {
+    devices.each {
+        try {
+            deleteChildDevice(it.deviceNetworkId) // 'it' is default
+        } catch (Exception e) {
+            debug("___exception: " + e)
+        }
+    }
+}
+
 def updated() {
-    debug "Updated with settings: ${settings}"
+    debug("Updated with settings: ${settings}")
     initialize()
 }
 
@@ -170,19 +188,25 @@ def addInsightSwitches() {
         }
 
         if (!d) {
-            d = addChildDevice("wemo", "Wemo Insight Switch", selectedInsightSwitch.value.mac, selectedInsightSwitch?.value.hub, [
-                "label": selectedInsightSwitch?.value?.name ?: "Wemo Insight Switch",
-                "data": [
-                    "mac": selectedInsightSwitch.value.mac,
-                    "ip": selectedInsightSwitch.value.ip,
-                    "port": selectedInsightSwitch.value.port
-                ]
-            ])
+            def data  = [
+                 "label": selectedInsightSwitch?.value?.name ?: "Wemo Insight Switch",
+                 "data": [
+                     "mac": selectedInsightSwitch.value.mac,
+                     "ip": selectedInsightSwitch.value.ip,
+                     "port": selectedInsightSwitch.value.port
+                 ]
+             ]
+            
+            debug("Mac: " + selectedInsightSwitch.value.mac)
+            debug("Hub: " + (selectedInsightSwitch?.value.hub))
+            debug("Data: " + data)
+            d = addChildDevice("zzarbi", "Wemo Insight Switch", selectedInsightSwitch.value.mac, (selectedInsightSwitch?.value.hub), data)
         }
     }
 }
 
 def initialize() {
+    debug("Initialiaze")
     // remove location subscription afterwards
     unsubscribe()
     state.subscribe = false
@@ -203,17 +227,23 @@ def locationHandler(evt) {
         return ""
     }
     
+    debug("Raw: "+evt);
+    
     def description = evt.description
     def hub = evt?.hubId
     def parsedEvent = parseDiscoveryMessage(description)
     parsedEvent << ["hub":hub]
     
+    debug("ParsedEvent: "+parsedEvent);
+    
     if (parsedEvent?.ssdpTerm?.contains("Belkin:device:insight")) {
         def insightSwitches = getWemoInsightSwitches()
 
         if (!(insightSwitches."${parsedEvent.ssdpUSN.toString()}")) { //if it doesn't already exist
+            debug("New device discovered")
             insightSwitches << ["${parsedEvent.ssdpUSN.toString()}":parsedEvent]
         } else { // just update the values
+            debug("Updating devices")
             def d = insightSwitches."${parsedEvent.ssdpUSN.toString()}"
             boolean deviceChangedValues = false
 

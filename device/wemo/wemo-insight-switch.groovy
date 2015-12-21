@@ -16,7 +16,7 @@
  */
 metadata {
     // Automatically generated. Make future change here.
-    definition (name: "WeMo Insight Switch", namespace: "wemo", author: "Nicolas Cerveaux") {
+    definition (name: "WeMo Insight Switch", namespace: "zzarbi", author: "Nicolas Cerveaux") {
         capability "Power Meter"
         capability "Energy Meter"
         capability "Actuator"
@@ -63,6 +63,10 @@ private debug(data){
 
 // parse events into attributes
 def parse(String description) {
+    if (description) {
+        return false
+    }
+    debug(description)
     def map = stringToMap(description)
     def headerString = new String(map.headers.decodeBase64())
     def result = []
