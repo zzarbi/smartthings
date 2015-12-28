@@ -51,7 +51,7 @@ metadata {
         }
 
         main "switch"
-        details (["switch", "energy", "refresh"])
+        details (["switch", "power", "energy", "refresh"])
     }
 }
 
