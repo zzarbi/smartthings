@@ -1,5 +1,6 @@
 /**
- *  Lifx Http
+ *  LIFX Bulb
+ *  Source: https://github.com/zzarbi/smartthings
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -15,13 +16,13 @@
  */
 
 metadata {
-    definition (name: "LIFX Group", namespace: "lifx", author: "Nicolas Cerveaux") {
+    definition (name: "LIFX Bulb", namespace: "zzarbi", author: "Nicolas Cerveaux") {
         capability "Polling"
         capability "Switch"
         capability "Switch Level"
         capability "Color Control"
         capability "Refresh"
-        
+
         command "setAdjustedColor"
         command "setColor"
     }
@@ -45,7 +46,7 @@ metadata {
         standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat") {
             state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
         }
-        
+
         main(["switch"])
         details(["switch","levelSliderControl","rgbSelector","refresh"])
     }
@@ -70,14 +71,14 @@ private sendCommand(path, method="GET", body=null) {
         body: body
     ]
     debug(method+" Http Params ("+pollParams+")")
-    
+
     try{
         if(method=="GET"){
-            httpGet(pollParams) { resp ->            
+            httpGet(pollParams) { resp ->
                 parseResponse(resp)
             }
         }else if(method=="PUT") {
-            httpPut(pollParams) { resp ->            
+            httpPut(pollParams) { resp ->
                 parseResponse(resp)
             }
         }
@@ -90,44 +91,33 @@ private parseResponse(resp) {
     debug("Response: "+resp.data)
     if(resp.status == 200) {
         if (resp.data) {
-            if(resp.data instanceof Collection){
-                // Default values
-                def groupPower = "off"
-                def groupBrightness = 0
-                def groupHue = 100
-                def groupSaturation = 100
-                
-                resp.data.each {
-                    if(it.power == "on") {
-                        groupPower = "on"
-                        groupBrightness = Math.ceil(it.brightness*100)
-                        groupHue = Math.ceil(it.color.hue / 3.6)
-                        groupSaturation = Math.ceil(it.color.saturation*100)
-                    }
+            if(resp.data.power){
+                def brightness = Math.ceil(resp.data.brightness*100)
+                def hue = Math.ceil(resp.data.color.hue / 3.6)
+                def saturation = Math.ceil(resp.data.color.saturation*100)
+
+                //update switch
+                if(device.currentValue("switch")!=resp.data.power){
+                    debug("Update switch to "+resp.data.power)
+                    sendEvent(name: "switch", value: resp.data.power)
                 }
-                
-                // update power
-                if(device.currentValue("switch")!=groupPower){
-                    debug("Update switch to "+groupPower)
-                    sendEvent(name: 'switch', value: groupPower)
-                }
-                
+
                 // update level
-                if(groupBrightness != device.currentValue("level")){
-                    debug('Update level to '+groupBrightness)
-                    sendEvent(name: 'level', value: groupBrightness)
+                if(brightness != device.currentValue("level")){
+                    debug('Update level to '+brightness)
+                    sendEvent(name: 'level', value: brightness)
                 }
 
                 // update hue
-                if(groupHue != device.currentValue("hue")){
-                    debug('Update hue to '+groupHue)
-                    sendEvent(name: 'hue', value: groupHue)
+                if(hue != device.currentValue("hue")){
+                    debug('Update hue to '+hue)
+                    sendEvent(name: 'hue', value: hue)
                 }
-                
+
                 // update saturation
-                if(groupSaturation != device.currentValue("saturation")){
-                    debug('Update saturation to '+groupSaturation)
-                    sendEvent(name: 'saturation', value: groupSaturation)
+                if(saturation != device.currentValue("saturation")){
+                    debug('Update saturation to '+saturation)
+                    sendEvent(name: 'saturation', value: saturation)
                 }
             }
         }
@@ -145,8 +135,8 @@ private sendAdjustedColor(data, powerOn) {
     def hue = Math.ceil(data.hue*3.6)
     def saturation = data.saturation/100
     def brightness = data.level/100
-    
-    sendCommand("lights/group_id:"+device.deviceNetworkId+"/color", "PUT", 'color=hue%3A'+hue+'%20saturation%3A'+saturation+'%20brightness%3A'+brightness+'&duration=1&power_on='+powerOn)
+
+    sendCommand("lights/"+device.deviceNetworkId+"/color", "PUT", 'color=hue%3A'+hue+'%20saturation%3A'+saturation+'%20brightness%3A'+brightness+'&duration=1&power_on='+powerOn)
 }
 
 def setAdjustedColor(value) {
@@ -154,9 +144,8 @@ def setAdjustedColor(value) {
     data.hue = value.hue
     data.saturation = value.saturation
     data.level = device.currentValue("level")
-    
-    sendAdjustedColor(data, 'true')
-    sendEvent(name: 'switch', value: "on")
+
+    sendAdjustedColor(data, 'false')
     sendEvent(name: 'hue', value: value.hue)
     sendEvent(name: 'saturation', value: value.saturation)
 }
@@ -178,7 +167,7 @@ def setColor(value) {
     data.hue = value.hue
     data.saturation = value.saturation
     data.level = (value.level)?value.level:device.currentValue("level")
-    
+
     sendAdjustedColor(data, 'true')
     sendEvent(name: 'hue', value: value.hue)
     sendEvent(name: 'saturation', value: value.saturation)
@@ -186,17 +175,17 @@ def setColor(value) {
 }
 
 def on() {
-    sendCommand("lights/group_id:"+device.deviceNetworkId+"/power", "PUT", "state=on&duration=1")
-    sendEvent(name: 'switch', value: "on")
+    sendCommand("lights/"+device.deviceNetworkId+"/power", "PUT", "state=on&duration=1")
+    sendEvent(name: "switch", value: "on")
 }
 
 def off() {
-    sendCommand("lights/group_id:"+device.deviceNetworkId+"/power", "PUT", "state=off&duration=1")
-    sendEvent(name: 'switch', value: "off")
+    sendCommand("lights/"+device.deviceNetworkId+"/power", "PUT", "state=off&duration=1")
+    sendEvent(name: "switch", value: "off")
 }
 
 def refresh() {
-    sendCommand("lights/group_id:"+device.deviceNetworkId)
+    sendCommand("lights/"+device.deviceNetworkId)
 }
 
 def poll() {

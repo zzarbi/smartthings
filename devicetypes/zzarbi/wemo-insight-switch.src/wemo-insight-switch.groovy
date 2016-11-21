@@ -1,6 +1,6 @@
 /**
- *  WeMo Insight Switch (Connect)
- *  Source: https://github.com/zzarbi/smartthings/blob/master/device/wemo/wemo-insight-switch.groovy
+ *  WeMo Insight Switch
+ *  Source: https://github.com/zzarbi/smartthings
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -68,13 +68,13 @@ def parse(String description) {
     }
     debug(description)
     def map = stringToMap(description)
-    
+
     def headerString = ""
     if (map.headers) {
         headerString = new String(map.headers.decodeBase64())
     }
     def result = []
-    
+
     // update subscriptionId
     if (headerString.contains("SID: uuid:")) {
         def sid = (headerString =~ /SID: uuid:.*/) ? ( headerString =~ /SID: uuid:.*/)[0] : "0"
@@ -82,12 +82,12 @@ def parse(String description) {
         debug('Update subscriptionID: '+ sid)
         updateDataValue("subscriptionId", sid)
     }
-    
+
     // parse the rest of the message
     if (map.body) {
         def bodyString = new String(map.body.decodeBase64())
         def body = new XmlSlurper().parseText(bodyString)
-        
+
         if(bodyString.contains('GetBinaryStateResponse') || bodyString.contains('GetInsightParamsResponse') || bodyString.contains('SetBinaryStateResponse') || bodyString.contains('<BinaryState>')) {
             def responseValue = body.text();
             def value = "off"
@@ -95,14 +95,14 @@ def parse(String description) {
             def power = 0
             debug("Updating Device:")
             if(responseValue.contains("|")){
-                /*  
+                /*
                     State (1 on | 0 off | 8 standby)
                     Seconds Since 1970 of Last State Change 1416067796
                     Last On Seconds 3835
                     Seconds On Today 14633
-                    Unknown Ð Unit is Seconds 236095
+                    Unknown ï¿½ Unit is Seconds 236095
                     Total Seconds 1209600
-                    Avg On Ð Units are Watts 98
+                    Avg On ï¿½ Units are Watts 98
                     Energy Used Now in mW * minutes 124130
                     Energy Used Total in mW * minutes 24366561
                     Unknown
@@ -118,7 +118,7 @@ def parse(String description) {
                 value = responseValue.toInteger() == 1 ? "on" : "off"
                 debug("Status: $value")
             }
-            
+
             // send event to refresh switch
             result << createEvent(name: "switch", value: value)
             result << createEvent(name: "energy", value: energy, unit: "Wm")
@@ -154,7 +154,7 @@ private getHostAddress() {
             debug("Can't figure out ip and port for device: ${device.id}")
         }
     }
-    
+
     //convert IP/port
     ip = convertHexToIP(ip)
     port = convertHexToInt(port)
@@ -257,7 +257,7 @@ def subscribe(ip, port) {
 def resubscribe() {
     debug("Executing 'resubscribe()'")
     def sid = getDeviceDataByName("subscriptionId")
-    
+
     new physicalgraph.device.HubAction("""SUBSCRIBE /upnp/event/basicevent1 HTTP/1.1
 HOST: ${getHostAddress()}
 SID: uuid:${sid}
@@ -277,5 +277,3 @@ SID: uuid:${sid}
 
 """, physicalgraph.device.Protocol.LAN)
 }
-
-

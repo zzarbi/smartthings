@@ -1,6 +1,6 @@
 /**
- *  WeMo Insight Connect
- *  Source: https://github.com/zzarbi/smartthings/blob/master/app/wemo/wemo-insight-connect.groovy
+ *  WD Player Connect
+ *  Source: https://github.com/zzarbi/smartthings
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -15,42 +15,53 @@
  *
  */
 definition(
-    name: "WeMo Insight Connect",
+    name: "WD Player Connect",
     namespace: "zzarbi",
     author: "Nicolas Cerveaux",
-    description: "Allows you to integrate your WeMo Insight Switch with SmartThings.",
+    description: "Allows you to integrate your WD Devices with SmartThings.",
     category: "SmartThings Labs",
-    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/wemo.png",
-    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Partner/wemo@2x.png"
-) {
-    appSetting "debug"
-}
+    iconUrl: "http://www.emerce.nl/content/uploads/2014/06/wd_logo.png",
+    iconX2Url: "http://www.emerce.nl/content/uploads/2014/06/wd_logo.png"
+)
 
 preferences {
-    page(name:"firstPage", title:"WeMo Insight Setup", content:"firstPage")
+    page(name:"firstPage", title:"WD Devices Setup", content:"firstPage")
 }
 
-private debug(data) {
-    if(appSettings.debug == "true"){
-        log.debug(data)
-    }
-}
-
-private discoverAllWemoTypes() {
-    debug("Send discover command")
-    sendHubCommand(new physicalgraph.device.HubAction("lan discovery urn:Belkin:device:insight:1", physicalgraph.device.Protocol.LAN))
+private discoverAllWDDevices() {
+    sendHubCommand(new physicalgraph.device.HubAction("lan discovery urn:schemas-upnp-org:device:MediaRenderer:1", physicalgraph.device.Protocol.LAN))
 }
 
 private getFriendlyName(String deviceNetworkId) {
-    sendHubCommand(new physicalgraph.device.HubAction("""GET /setup.xml HTTP/1.1
-HOST: ${deviceNetworkId}
+    sendHubCommand(new physicalgraph.device.HubAction([
+        method: "GET",
+        path: "/",
+        headers: [
+            HOST: ipAddressFromDni(deviceNetworkId)
+        ]], deviceNetworkId)
+    )
+}
 
-""", physicalgraph.device.Protocol.LAN, "${deviceNetworkId}"))
+private Integer convertHexToInt(hex) {
+    Integer.parseInt(hex,16)
+}
+
+private String convertHexToIP(hex) {
+    [convertHexToInt(hex[0..1]),convertHexToInt(hex[2..3]),convertHexToInt(hex[4..5]),convertHexToInt(hex[6..7])].join(".")
+}
+
+private ipAddressFromDni(deviceNetworkId) {
+    def parts = deviceNetworkId.split(":")
+    def ip = convertHexToIP(parts[0])
+    def port = convertHexToInt(parts[1])
+    //log.debug "Using ip: ${ip} and port: ${port} for device: ${deviceNetworkId}"
+    return ip + ":" + port
 }
 
 private verifyDevices() {
-    def insightSwitches = getWemoInsightSwitches().findAll { it?.value?.verified != true }
-    insightSwitches.each {
+    //log.debug("Verify Devices")
+    def wdDevices = getWdDevices().findAll { it?.value?.verified != true }
+    wdDevices.each {
         getFriendlyName((it.value.ip + ":" + it.value.port))
     }
 }
@@ -61,10 +72,9 @@ def firstPage() {
         state.refreshCount = refreshCount + 1
         def refreshInterval = 5
 
-        debug("REFRESH COUNT :: ${refreshCount}")
+        //log.debug "REFRESH COUNT :: ${refreshCount}"
 
         if(!state.subscribe) {
-            debug("Subscribe to location")
             // subscribe to answers from HUB
             subscribe(location, null, locationHandler, [filterEvents:false])
             state.subscribe = true
@@ -72,7 +82,7 @@ def firstPage() {
 
         //ssdp request every 25 seconds
         if((refreshCount % 5) == 0) {
-            discoverAllWemoTypes()
+            discoverAllWDDevices()
         }
 
         //setup.xml request every 5 seconds except on discoveries
@@ -80,11 +90,11 @@ def firstPage() {
             verifyDevices()
         }
 
-        def insightSwitchesDiscovered = insightSwitchesDiscovered()
+        def wdDeviceDiscovered = wdDeviceDiscovered()
 
-        return dynamicPage(name:"firstPage", title:"Discovery Started!", nextPage:"", refreshInterval: refreshInterval, install:true, uninstall: true) {
-            section("Select a device...") {
-                input "selectedInsightSwitches", "enum", required:false, title:"Select Insight Switches \n(${insightSwitchesDiscovered.size() ?: 0} found)", multiple:true, options:insightSwitchesDiscovered
+        return dynamicPage(name:"firstPage", title:"Discovery Started!", nextPage:"", refreshInterval: refreshInterval, install:true, uninstall: selectedPlayers != null) {
+            section("Select a Player...") {
+                input "selectedDevices", "enum", required:false, title:"WD Devices \n(${wdDeviceDiscovered.size() ?: 0} found)", multiple:true, options:wdDeviceDiscovered
             }
         }
     } else {
@@ -100,53 +110,30 @@ To update your Hub, access Location Settings in the Main Menu (tap the gear next
     }
 }
 
-def devicesDiscovered() {
-    def insightSwitches = getWemoInsightSwitches()
-    def list = []
-
-    list = insightSwitches?.collect{ [app.id, it.ssdpUSN].join('.') }
-}
-
-def insightSwitchesDiscovered() {
-    debug("Dicovered insight switches")
-    def insightSwitches = getWemoInsightSwitches().findAll { it?.value?.verified == true }
+def wdDeviceDiscovered() {
+    //log.debug("Dicovered Player")
+    def wdDevices = getWdDevices().findAll { it?.value?.verified == true }
     def map = [:]
-    insightSwitches.each {
-        def value = it.value.name ?: "WeMo Insight Switch ${it.value.ssdpUSN.split(':')[1][-3..-1]}"
+    wdDevices.each {
+        def value = it.value.name ?: "WD Device ${it.value.ssdpUSN.split(':')[1][-3..-1]}"
         def key = it.value.mac
         map["${key}"] = value
     }
     map
 }
 
-def getWemoInsightSwitches() {
-    if (!state.insightSwitches) { state.insightSwitches = [:] }
-    state.insightSwitches
+def getWdDevices() {
+    if (!state.wdDevices) { state.wdDevices = [:] }
+    state.wdDevices
 }
 
 def installed() {
-    debug("Installed with settings: ${settings}")
+    //log.debug "Installed with settings: ${settings}"
     initialize()
 }
 
-def uninstalled() {
-    debug("Uninstalling, removing child devices...")
-    unschedule('subscribeToDevices')
-    removeChildDevices(getChildDevices())
-}
-
-private removeChildDevices(devices) {
-    devices.each {
-        try {
-            deleteChildDevice(it.deviceNetworkId) // 'it' is default
-        } catch (Exception e) {
-            debug("___exception: " + e)
-        }
-    }
-}
-
 def updated() {
-    debug("Updated with settings: ${settings}")
+    //log.debug "Updated with settings: ${settings}"
     initialize()
 }
 
@@ -166,58 +153,57 @@ def refreshDevices() {
 }
 
 def subscribeToDevices() {
-    debug("subscribeToDevices() called")
+    //log.debug "subscribeToDevices() called"
     def devices = getAllChildDevices()
     devices.each { d ->
-        debug('Call subscribe on '+d.id)
+        //log.debug('Call subscribe on '+d.id)
         d.subscribe()
     }
 }
 
-def addInsightSwitches() {
-    def insightSwitches = getWemoInsightSwitches()
+def addDevices() {
+    def wdDevices = getWdDevices()
 
-    selectedInsightSwitches.each { dni ->
-        def selectedInsightSwitch = insightSwitches.find { it.value.mac == dni } ?: insightSwitches.find { "${it.value.ip}:${it.value.port}" == dni }
+    selectedDevices.each { dni ->
+        def selectedDevice = wdDevices.find { it.value.mac == dni } ?: wdDevices.find { "${it.value.ip}:${it.value.port}" == dni }
 
         def d
-        if (selectedInsightSwitch) {
+        if (selectedDevice) {
             d = getChildDevices()?.find {
-                it.dni == selectedInsightSwitch.value.mac || it.device.getDataValue("mac") == selectedInsightSwitch.value.mac
+                it.dni == selectedDevice.value.mac || it.device.getDataValue("mac") == selectedDevice.value.mac
             }
         }
 
         if (!d) {
-            def data  = [
-                 "label": selectedInsightSwitch?.value?.name ?: "Wemo Insight Switch",
-                 "data": [
-                     "mac": selectedInsightSwitch.value.mac,
-                     "ip": selectedInsightSwitch.value.ip,
-                     "port": selectedInsightSwitch.value.port
-                 ]
-             ]
-            
-            debug("Mac: " + selectedInsightSwitch.value.mac)
-            debug("Hub: " + (selectedInsightSwitch?.value.hub))
-            debug("Data: " + data)
-            d = addChildDevice("zzarbi", "Wemo Insight Switch", selectedInsightSwitch.value.mac, (selectedInsightSwitch?.value.hub), data)
+            log.debug("Add device")
+            try{
+                d = addChildDevice("wd", selectedDevice.value.model, selectedDevice.value.mac, selectedDevice.value.hub, [
+                    "label": selectedDevice.value.name ?: "Unknow WD Device",
+                    "data": [
+                        "mac": selectedDevice.value.mac,
+                        "ip": selectedDevice.value.ip,
+                        "port": selectedDevice.value.port
+                    ]
+                ])
+            }catch(Exception e){
+                log.error("Cannot add Device: "+e)
+            }
         }
     }
 }
 
 def initialize() {
-    debug("Initialiaze")
     // remove location subscription afterwards
     unsubscribe()
     state.subscribe = false
-    
-    if (selectedInsightSwitches) {
-        addInsightSwitches()
+
+    if (selectedDevices) {
+        addDevices()
     }
-    
+
     // run once subscribeToDevices
     subscribeToDevices()
-    
+
     //setup cron jobs
     schedule("10 * * * * ?", "subscribeToDevices")
 }
@@ -226,25 +212,19 @@ def locationHandler(evt) {
     if(evt.name == "ping") {
         return ""
     }
-    
-    debug("Raw: "+evt);
-    
+
     def description = evt.description
     def hub = evt?.hubId
     def parsedEvent = parseDiscoveryMessage(description)
     parsedEvent << ["hub":hub]
-    
-    debug("ParsedEvent: "+parsedEvent);
-    
-    if (parsedEvent?.ssdpTerm?.contains("Belkin:device:insight")) {
-        def insightSwitches = getWemoInsightSwitches()
 
-        if (!(insightSwitches."${parsedEvent.ssdpUSN.toString()}")) { //if it doesn't already exist
-            debug("New device discovered")
-            insightSwitches << ["${parsedEvent.ssdpUSN.toString()}":parsedEvent]
+    if (parsedEvent?.ssdpTerm?.contains("device:MediaRenderer:1")) {
+        def wdDevices = getWdDevices()
+
+        if (!(wdDevices."${parsedEvent.ssdpUSN.toString()}")) { //if it doesn't already exist
+            wdDevices << ["${parsedEvent.ssdpUSN.toString()}":parsedEvent]
         } else { // just update the values
-            debug("Updating devices")
-            def d = insightSwitches."${parsedEvent.ssdpUSN.toString()}"
+            def d = wdDevices."${parsedEvent.ssdpUSN.toString()}"
             boolean deviceChangedValues = false
 
             if(d.ip != parsedEvent.ip || d.port != parsedEvent.port) {
@@ -264,17 +244,21 @@ def locationHandler(evt) {
 
         }
     } else if (parsedEvent.headers && parsedEvent.body) {
-        def headerString = new String(parsedEvent.headers.decodeBase64())
-        def bodyString = new String(parsedEvent.body.decodeBase64())
-        def body = new XmlSlurper().parseText(bodyString)
+        def headers = new String(parsedEvent.headers.decodeBase64())
+        // if request is XML
+        if(headers.contains("text/xml")){
+            def bodyString = new String(parsedEvent.body.decodeBase64())
+            def body = new XmlSlurper().parseText(bodyString)
 
-        if (body?.device?.deviceType?.text().startsWith("urn:Belkin:device:insight")) {
-            def insightSwitches = getWemoInsightSwitches()
-            def wemoInsigthSwitch = insightSwitches.find {it?.key?.contains(body?.device?.UDN?.text())}
-            if (wemoInsigthSwitch) {
-                wemoInsigthSwitch.value << [name:body?.device?.friendlyName?.text(), verified: true]
-            } else {
-                log.error "/setup.xml returned a wemo device that didn't exist"
+            // if the xml containt data about the device
+            if (body?.device?.deviceType?.text().contains("device:MediaRenderer:1") && body?.device?.manufacturer?.text().contains("Western Digital Corporation")) {
+                def wdDevices = getWdDevices();
+                def wdDevice = wdDevices.find {it?.key?.contains(body?.device?.UDN?.text())}
+                if (wdDevice) {
+                    wdDevice.value << [name:body?.device?.friendlyName?.text(), model:body?.device?.modelName?.text(), verified: true]
+                } else {
+                    log.error "/setup.xml returned a wemo device that didn't exist"
+                }
             }
         }
     }

@@ -1,6 +1,6 @@
 /**
- *  WeMo Insight Connect
- *  Source: https://github.com/zzarbi/smartthings/blob/master/revogi/revogi-connect.groovy
+ *  Revogi Connect
+ *  Source: https://github.com/zzarbi/smartthings
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -52,7 +52,7 @@ def settingsPage() {
 def setupSPSPage() {
     // reset counter to 0
     state.refreshCount = 0
-    
+
     if(canInstallLabs()) {
         dynamicPage(name: "setupSPSPage", title: "Smart Power Strip Setup", install: false, uninstall: true, nextPage: "discoverSPSpage") {
             section() {
@@ -76,7 +76,7 @@ def discoverSPSpage() {
     int refreshCount = !state.refreshCount ? 0 : state.refreshCount as int
     state.refreshCount = refreshCount + 1
     def refreshInterval = 5
-    
+
     if(!state.subscribe) {
         debug("Subscribe to location")
         // subscribe to answers from HUB
@@ -92,7 +92,7 @@ def discoverSPSpage() {
     }
 
     def revogiSPS = getRevogiSPS()
-    
+
     // if discovered device no need to refresh
     if (revogiSPS.size() > 0){
         return dynamicPage(name:"discoverSPSpage", title:"Device Found", nextPage:"home", install:true, uninstall: true) {
@@ -101,7 +101,7 @@ def discoverSPSpage() {
             }
         }
     }
-    
+
     return dynamicPage(name:"discoverSPSpage", title:"Verification in progress", nextPage:null, refreshInterval: refreshInterval, install:false, uninstall: true) {
         section() {
             paragraph "The device is currently being verified with IP $spsIP"
@@ -134,7 +134,7 @@ private String convertPortToHex(port) {
 private verifyDevices(ip) {
     def deviceNetworkId= convertIPtoHex(ip)+":"+convertPortToHex("80")
     debug("Verify Device via ${ip} and ${deviceNetworkId}")
-    
+
     sendHubCommand(new physicalgraph.device.HubAction("""GET /?cmd=511 HTTP/1.1
 HOST: ${deviceNetworkId}
 
@@ -158,18 +158,18 @@ def locationHandler(evt) {
     def body = ""
     def hub = evt?.hubId
     request << ["hub":hub] // add the hub in the request
-            
+
     if (request.headers) {
         headers = request.headers
     }
-    
+
     if (request.body) {
         body = request.body
     }
 
     debug("Headers: ${headers}")
     debug("body: ${body}")
-    
+
     // if it's an answer of cmd 511
     if (body.contains("\"response\":511")) {
         def revogiSPS = getRevogiSPS()
@@ -212,7 +212,7 @@ def updated() {
 
 def addRevogiSPS() {
     def revogiSPS = getRevogiSPS()
-    
+
     if(!state.installedSwitch){
         state.installedSwitch = [:]
     }
@@ -220,21 +220,21 @@ def addRevogiSPS() {
     revogiSPS.each { dni, value ->
         // decode data
         def jsonData = new JsonSlurper().parseText(value.body)
-        
+
         if (jsonData.data."switch".size() > 0){
             debug("Setting Up " + jsonData.data."switch".size() + " switches")
-            
+
             // adding all switches
             for (def i = 0;i<jsonData.data."switch".size();i++) {
                 debug("Switch #"+i)
                 def deviceID = dni + ":"+i;
                 deviceID = new String(deviceID.encodeAsBase64())
-                
+
                 if(!state.installedSwitch."$deviceID") {
                     def d = getChildDevices()?.find {
                         it.dni == deviceID
                     }
-            
+
                     if (!d) { // only add if not added already
                         def data  = [
                              "label": "Smart Power Strip Switch #"+(i+1),
@@ -248,7 +248,7 @@ def addRevogiSPS() {
                          ]
 
                         debug("Adding Device Data: " + data)
-                        
+
                         try {
                             state.installedSwitch."$deviceID" = true;
                             d = addChildDevice("zzarbi", "Revogi Smart Power Strip Switch", deviceID, value.hub, data)
@@ -259,11 +259,11 @@ def addRevogiSPS() {
                 }
             }
         }
-        
+
         def bridge = getChildDevices()?.find {
             it.dni == dni
         }
-        
+
         if(!state.installedSwitch."$dni"){
             // adding the bridges itself
             if (!bridge) { // only add if not added already
@@ -276,9 +276,9 @@ def addRevogiSPS() {
                          "master": true
                      ]
                 ]
-                
+
                 debug("Adding Device Data: " + data)
-                
+
                 try {
                     state.installedSwitch."$dni" = true;
                     bridge = addChildDevice("zzarbi", "Revogi Smart Power Strip", dni, value.hub, data)
@@ -298,11 +298,11 @@ def initialize() {
     state.refreshScheduler = false
 
     def revogiSPS = getRevogiSPS()
-    
+
     // add device if it's found
     if(revogiSPS.size() > 0) {
         addRevogiSPS()
-        
+
         if (!state.refreshScheduler) {
             // schedule from every minute
             schedule("0 * * * * ?", spsRefreshScheduler)
@@ -314,7 +314,7 @@ def initialize() {
 def spsRefreshScheduler(evt) {
     debug("Running scheduler - Revogi Smart Power Strip")
     def spsBridge = getChildDevices()?.find {it.name == "Revogi Smart Power Strip"}
-    
+
     if (spsBridge) {
         spsBridge.refresh()
     }

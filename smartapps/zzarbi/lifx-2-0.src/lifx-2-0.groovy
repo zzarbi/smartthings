@@ -1,5 +1,6 @@
 /**
- *  Lifx (Connect)
+ *  LIFX (Connect)
+ *  Source: https://github.com/zzarbi/smartthings
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -17,7 +18,7 @@ import groovy.json.JsonBuilder
 
 definition(
     name: "LIFX 2.0",
-    namespace: "lifx",
+    namespace: "zzarbi",
     author: "Nicolas Cerveaux",
     description: "Allows you to connect your LIFX lights bulbs with SmartThings and control them from your Things area or Dashboard in the SmartThings Mobile app. Adjust colors by going to the Thing detail screen for your LIFX lights (tap the gear on LIFX tiles).\n\nPlease update your LIFX Bridge first, outside of the SmartThings app, using the LIFX app.",
     category: "SmartThings Labs",
@@ -48,14 +49,14 @@ private discoverLifx() {
         headers: ["Content-Type": "text/json", "Authorization": "Bearer ${appSettings.accessToken}"],
         query: [format: 'json', body: jsonRequestBody]
     ]
-    
+
     try{
-        httpGet(pollParams) { resp ->            
+        httpGet(pollParams) { resp ->
             if(resp.status == 200) {
                 if (resp.data) {
                     def bulbs = getBulbs()
                     def groups = getGroups()
-                    
+
                     resp.data.each() { bulb ->
                         // add Bulbs
                         if (!(bulbs."${bulb.id.toString()}")) { // if it doesn't already exist
@@ -65,7 +66,7 @@ private discoverLifx() {
                             bulbs["${bulb.id.toString()}"] = bulb;
                             debug("Updating bulb ${bulb.id}")
                         }
-                        
+
                         // add Groups
                         if (!(groups."${bulb.group.id.toString()}")) { // if it doesn't already exist
                             groups << ["${bulb.group.id.toString()}":bulb.group]
@@ -95,7 +96,7 @@ def mainPage() {
                 }
             }
         }
-        
+
         return lifxDiscovery()
     } else {
         def upgradeNeeded = """To use SmartThings Labs, your Hub should be completely up to date.
@@ -112,7 +113,7 @@ To update your Hub, access Location Settings in the Main Menu (tap the gear next
 
 def lifxDiscovery(params=[:]) {
     def refreshInterval = 5
-    
+
     discoverLifx()
 
     def bulbsDiscovered = bulbsDiscovered()
@@ -171,19 +172,19 @@ def refresh() {
 
 def initialize() {
     debug("Initialize LIFX 2.0")
-    
+
     // remove schedule
     unschedule()
     state.statusScheduled = false
-    
+
     if (selectedBulbs) {
         addBulbs()
     }
-    
+
     if(selectedGroups) {
         addGroups()
     }
-    
+
     if((selectedBulbs || selectedGroups) && state.statusScheduled == false) {
         // schedule from every 5 minute
         schedule("0 0/5 * * * ?", "pollChildrenHandler")
@@ -206,11 +207,11 @@ def checkBulbConnectionStatus() {
     def bulbWithErrors = []
     def dateLastError = null
     def today = new Date()
-    
+
     if(state.lastError != 0){
         dateLastError = new Date((long)state.lastError)
     }
-    
+
     // call dicoverBulb
     discoverLifx();
     getBulbs().each { id, it ->
@@ -219,7 +220,7 @@ def checkBulbConnectionStatus() {
             bulbWithErrors << it.label
         }
     }
-    
+
     if(foundError){
         if(dateLastError == null || dateLastError.format('MM/dd') != today.format('MM/dd')){
             state.lastError = now()
@@ -246,7 +247,7 @@ private addBulbs() {
             // find childDevices
             d = getChildDevices()?.find {it.deviceNetworkId == id}
         }
-        
+
         // if device not found
         if (!d) {
             // create device
@@ -270,7 +271,7 @@ private addGroups() {
             // find childDevices
             d = getChildDevices()?.find {it.deviceNetworkId == id}
         }
-        
+
         // if device not found
         if (!d) {
             // create device

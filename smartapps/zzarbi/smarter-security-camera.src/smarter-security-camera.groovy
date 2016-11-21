@@ -1,9 +1,10 @@
 /**
  *  Smarter Security Camera
+ *  Source: https://github.com/zzarbi/smartthings
  *
  *  Copyright 2016 Nicolas Cerveaux
  *  * Only compatible with Diskstation Camera (https://github.com/st-swanny/smartthings/blob/master/DiskStation/DiskstationCamera.groovy)
- *  
+ *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
  *
@@ -39,7 +40,7 @@ def homePage() {
         section("Please select a camera to manage") {
             input "theCamera", "capability.imageCapture", multiple: false, required: true
         }
-    }    
+    }
 }
 
 def preferencesPage() {
@@ -48,7 +49,7 @@ def preferencesPage() {
         	location.modes.each {
             	def presetSettings = "pressetFor_" + it
                 def label = "Name of the Preset for " + it
-                
+
         		input(name: presetSettings, type: "text", title: label, required: false)
         	}
         }
@@ -71,7 +72,7 @@ def updated() {
 def initialize() {
 	// Subscribe to mode change
     subscribe(location, "mode", modeChangeHandler)
-    
+
     location.modes.each {
         def presetSettings = settings."pressetFor_${it}"
         presetSettings = presetSettings.trim()
@@ -83,10 +84,10 @@ def initialize() {
 
 def modeChangeHandler(evt) {
     log.debug "mode changed to ${evt.value}"
-    
+
     def preset = settings."pressetFor_${evt.value}"
     preset = preset.trim()
-    
+
     if (preset) {
     	log.debug("Move Camera to: ${preset}")
         theCamera.presetGoName(preset)

@@ -1,6 +1,6 @@
 /**
  *  Revogi Smart Power Strip Switch
- *  Source: https://github.com/zzarbi/smartthings/blob/master/device/wemo/wemo-insight-switch.groovy
+ *  Source: https://github.com/zzarbi/smartthings
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -56,7 +56,7 @@ private debug(data){
 private getSwitchNumber() {
     def dniDecoded = new String(device.deviceNetworkId.decodeBase64())
     def parts = dniDecoded.split(":")
-    
+
     return parts[1].toInteger()
 }
 
@@ -69,7 +69,7 @@ def setValue(name, value) {
 }
 
 private getBridge() {
-    def bridge = parent.childDevices.find {it.name == "Revogi Smart Power Strip"}    
+    def bridge = parent.childDevices.find {it.name == "Revogi Smart Power Strip"}
     return bridge
 }
 
@@ -90,5 +90,3 @@ def off() {
     sendEvent(name: "switch", value: "off")
     sendEvent(name: "power", value: 0, unit: "Watts")
 }
-
-
