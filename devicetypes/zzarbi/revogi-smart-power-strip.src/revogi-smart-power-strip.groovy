@@ -1,6 +1,6 @@
 /**
  *  Revogi Smart Power Strip
- *  Source: https://github.com/zzarbi/smartthings/blob/master/device/wemo/wemo-insight-switch.groovy
+ *  Source: https://github.com/zzarbi/smartthings
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -21,7 +21,7 @@ metadata {
         capability "Switch"
         capability "Polling"
         capability "Refresh"
-        
+
         command "poll", ["string"]
         command "on", ["string"]
         command "off", ["string"]
@@ -69,7 +69,7 @@ private String convertHexToIP(hex) {
 private getHostAddress() {
     def ip = getDataValue("ip")
     def port = getDataValue("port")
-    
+
     if (!ip || !port) {
         def parts = device.deviceNetworkId.split(":")
         if (parts.length == 2) {
@@ -79,7 +79,7 @@ private getHostAddress() {
             debug("Can't figure out ip and port for device: ${device.id}")
         }
     }
-    
+
     //convert IP/port
     ip = convertHexToIP(ip)
     port = convertHexToInt(port)
@@ -105,39 +105,39 @@ def parse(String description) {
     debug("Got somehting: $description")
     def map = stringToMap(description)
     def result = []
-    
+
     if (map.body) {
         def json = new JsonSlurper().parseText(new String(map.body.decodeBase64()))
-        
+
         // status update
         if (json.response == 511 && json.data){
             def switches = [:]
             def i = 0
             def power = 0
-            
+
             for (i = 0;i<json.data."switch".size();i++) {
                 updateSwitch(i, [
                     'status': json.data."switch"[i],
                     'power': Float.parseFloat(json.data."watt"[i])
                 ])
-                
+
                 power += Float.parseFloat(json.data."watt"[i])
             }
 
             result << createEvent(name: "switch", value: (power>0?"on":"off"))
             result << createEvent(name: "power", value: power, unit: "Watts")
-            
+
         }
     }
-    
+
     result
 }
 
 private updateSwitch(number, data) {
-    def dni = device.deviceNetworkId + ":"+number;   
+    def dni = device.deviceNetworkId + ":"+number;
     dni = new String(dni.encodeAsBase64())
     debug("updateSwitch #$number with $data dni: $dni")
-    
+
     // not sure why find doesn't wrk but this does...
     def aSwitch
     for(def d : parent.childDevices) {
@@ -146,7 +146,7 @@ private updateSwitch(number, data) {
             break
         }
     }
-    
+
     if(aSwitch){
         // update switch
         if(data.status == 1 && aSwitch.currentValue("switch")!='on'){
@@ -156,7 +156,7 @@ private updateSwitch(number, data) {
             log.debug('Update switch to off')
             aSwitch.setValue('switch', "off")
         }
-        
+
         // update level
         if(data.power != aSwitch.currentValue("power")){
             log.debug('Update power to '+data.power)
@@ -192,5 +192,3 @@ def on(switchNumber) {
 def off(switchNumber) {
     sendCommand('/?cmd=200&json={"port":'+(switchNumber+1)+',"state":0}')
 }
-
-

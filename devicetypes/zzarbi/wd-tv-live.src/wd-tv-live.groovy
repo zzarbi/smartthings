@@ -1,5 +1,6 @@
 /**
  *  WD TV Live Player
+ *  Source: https://github.com/zzarbi/smartthings
  *
  *  Copyright 2014 Nicolas Cerveaux
  *
@@ -14,7 +15,7 @@
  *
  */
 metadata {
-    definition (name: "WD TV Live", namespace: "wd", author: "Nicolas Cerveaux") {
+    definition (name: "WD TV Live", namespace: "zzarbi", author: "Nicolas Cerveaux") {
         capability "Switch"
         capability "Switch Level"
         capability "Media Controller"
@@ -39,14 +40,14 @@ metadata {
             state "playing", label:'Playing', action:"music Player.pause", icon:"st.Electronics.electronics16", nextState:"paused", backgroundColor:"#79b821"
             state "grouped", label:'Grouped', icon:"st.Electronics.electronics16", backgroundColor:"#ffffff"
         }
-        
+
         standardTile("switch", "device.switch", width: 2, height: 2, canChangeIcon: true) {
             state "on", label:'${name}', action:"switch.off", icon:"st.Entertainment.entertainment11", backgroundColor:"#79b821", nextState:"turningOff"
             state "off", label:'${name}', action:"switch.on", icon:"st.Entertainment.entertainment11", backgroundColor:"#ffffff", nextState:"turningOn"
             state "turningOn", label:'${name}', icon:"st.Entertainment.entertainment11", backgroundColor:"#79b821"
             state "turningOff", label:'${name}', icon:"st.Entertainment.entertainment11", backgroundColor:"#ffffff"
         }
-        
+
         standardTile("mute", "device.mute", inactiveLabel: false, decoration: "flat") {
             state "unmuted", label:"", action:"music Player.mute", icon:"st.custom.sonos.unmuted", backgroundColor:"#ffffff", nextState:"muted"
             state "muted", label:"", action:"music Player.unmute", icon:"st.custom.sonos.muted", backgroundColor:"#ffffff", nextState:"unmuted"
@@ -55,7 +56,7 @@ metadata {
         controlTile("levelSliderControl", "device.level", "slider", height: 1, width: 3, inactiveLabel: false) {
             state "level", action:"switch level.setLevel", backgroundColor:"#ffffff"
         }
-        
+
         standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat") {
             state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
         }
@@ -71,13 +72,13 @@ def parse(String description) {
     def header = new String(map.headers.decodeBase64())
     def result = []
     log.debug("Header: "+header)
-    
+
     // parse the rest of the message
     if(header.contains("text/xml")){
         if (map.body) {
             def bodyString = new String(map.body.decodeBase64())
             def body = new XmlSlurper().parseText(bodyString)
-            
+
             if(bodyString.contains('u:GetMuteResponse')){
                 def responseValue = body.text();
                 def value = responseValue.toInteger() == 1 ? "muted" : "unmuted"
@@ -89,7 +90,7 @@ def parse(String description) {
             }
         }
     }
-    
+
     result
 }
 
@@ -288,7 +289,7 @@ private getHostAddress() {
             //log.warn "Can't figure out ip and port for device: ${device.id}"
         }
     }
-    
+
     //convert IP/port
     ip = convertHexToIP(ip)
     port = convertHexToInt(port)
