@@ -116,12 +116,20 @@ def parse(String description) {
             def power = 0
 
             for (i = 0;i<json.data."switch".size();i++) {
+                def watt = json.data."watt"[i]
+                
+                if (watt instanceof String) {
+                    watt = Float.parseFloat(watt)
+                } else {
+                    watt = (float)watt
+                }
+                
                 updateSwitch(i, [
                     'status': json.data."switch"[i],
-                    'power': Float.parseFloat(json.data."watt"[i])
+                    'power': watt
                 ])
 
-                power += Float.parseFloat(json.data."watt"[i])
+                power += watt
             }
 
             result << createEvent(name: "switch", value: (power>0?"on":"off"))
